@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 export async function POST(request: Request) {
   const { message, filters, limit } = await request.json();
 
-  const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/search/hybrid`, {
+  const response = await fetch(new URL('/api/search/hybrid', request.url), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
