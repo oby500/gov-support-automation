@@ -13,7 +13,7 @@ import {
   FileText,
   AlertCircle
 } from 'lucide-react'
-import { JobStatusType } from '@/hooks/useJobStatus'
+import { JobStatusType } from '../hooks/useJobStatus'
 
 interface JobProgressCardProps {
   /** Job 상태 */
