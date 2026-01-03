@@ -25,32 +25,32 @@ export default function DashboardPage() {
       // K-Startup 공고 조회
       const { data: kstartupData } = await supabase
         .from('kstartup_complete')
-        .select('announcement_id, biz_pbanc_nm, instt_nm, end_date')
-        .gte('end_date', new Date().toISOString().split('T')[0])
-        .order('end_date', { ascending: true })
+        .select('announcement_id, biz_pbanc_nm, pbanc_ntrp_nm, pbanc_rcpt_end_dt')
+        .gte('pbanc_rcpt_end_dt', new Date().toISOString().split('T')[0])
+        .order('pbanc_rcpt_end_dt', { ascending: true })
         .limit(9);
 
       // BizInfo 공고 조회
       const { data: bizinfoData } = await supabase
         .from('bizinfo_complete')
-        .select('pblanc_id, pblanc_nm, instt_nm, rcept_endde')
-        .gte('rcept_endde', new Date().toISOString().split('T')[0])
-        .order('rcept_endde', { ascending: true })
+        .select('pblanc_id, pblanc_nm, organ_nm, reqst_end_ymd')
+        .gte('reqst_end_ymd', new Date().toISOString().split('T')[0])
+        .order('reqst_end_ymd', { ascending: true })
         .limit(9);
 
       const combined: Announcement[] = [
         ...(kstartupData || []).map(item => ({
           id: item.announcement_id,
           title: item.biz_pbanc_nm,
-          organization: item.instt_nm,
-          end_date: item.end_date,
+          organization: item.pbanc_ntrp_nm,
+          end_date: item.pbanc_rcpt_end_dt,
           source: 'kstartup'
         })),
         ...(bizinfoData || []).map(item => ({
           id: item.pblanc_id,
           title: item.pblanc_nm,
-          organization: item.instt_nm,
-          end_date: item.rcept_endde,
+          organization: item.organ_nm,
+          end_date: item.reqst_end_ymd,
           source: 'bizinfo'
         }))
       ];
