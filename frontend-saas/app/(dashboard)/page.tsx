@@ -13,6 +13,7 @@ interface Announcement {
   organization: string;
   end_date: string;
   source: string;
+  relevance?: number;
 }
 
 interface FilterOptions {
@@ -25,6 +26,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({ categories: [] });
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [useAISearch, setUseAISearch] = useState(false);
 
   useEffect(() => {
     fetchRecent();
@@ -83,6 +85,49 @@ export default function DashboardPage() {
       setAnnouncements(combined);
     } catch (error) {
       console.error('공고 조회 실패:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSemanticSearch() {
+    if (!searchQuery.trim()) return;
+
+    setLoading(true);
+
+    try {
+      const response = await fetch('/api/search/hybrid', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query: searchQuery,
+          source: 'all',
+          limit: 20,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`AI 검색 실패: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      const mapped: Announcement[] = (data?.results || []).map((item: any) => ({
+        id: String(item?.announcement_id ?? ''),
+        title: String(item?.title ?? ''),
+        organization: String(item?.organization ?? ''),
+        end_date: String(item?.end_date ?? ''),
+        source: String(item?.source ?? ''),
+        relevance: typeof item?.final_score === 'number'
+          ? item.final_score
+          : (typeof item?.vector_score === 'number' ? item.vector_score : undefined),
+      }));
+
+      setAnnouncements(mapped);
+    } catch (error) {
+      console.error('AI 검색 실패:', error);
     } finally {
       setLoading(false);
     }
@@ -203,9 +248,28 @@ export default function DashboardPage() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleSearch();
+                      if (e.key === 'Enter') {
+                        useAISearch ? handleSemanticSearch() : handleSearch();
+                      }
                     }}
                   />
+                </div>
+
+                <div className="mt-3 flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="ai-search"
+                    checked={useAISearch}
+                    onChange={(e) => setUseAISearch(e.target.checked)}
+                    className="w-4 h-4 accent-purple-600 flex-shrink-0"
+                  />
+                  <label
+                    htmlFor="ai-search"
+                    className="text-sm font-medium text-purple-900 cursor-pointer flex items-center gap-1.5"
+                  >
+                    <span>✨</span>
+                    <span>AI 검색</span>
+                  </label>
                 </div>
 
                 <div className="mt-3">
@@ -227,7 +291,10 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <Button onClick={handleSearch} className="bg-blue-600 hover:bg-blue-700 h-12 px-8">
+              <Button
+                onClick={useAISearch ? handleSemanticSearch : handleSearch}
+                className="bg-blue-600 hover:bg-blue-700 h-12 px-8"
+              >
                 검색
               </Button>
             </div>
@@ -279,6 +346,11 @@ export default function DashboardPage() {
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1"></div>
                     <div>
+                      {typeof announcement.relevance === 'number' && (
+                        <span className="inline-block px-2.5 py-1 bg-purple-600 text-white text-xs font-bold rounded mr-2">
+                          AI {Math.round(announcement.relevance * 100)}
+                        </span>
+                      )}
                       {isDeadline ? (
                         <span className="inline-block px-2.5 py-1 bg-red-500 text-white text-xs font-bold rounded">
                           마감임박
