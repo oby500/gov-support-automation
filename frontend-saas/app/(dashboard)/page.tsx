@@ -37,6 +37,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({ categories: [] });
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'ongoing' | 'deadline'>('all');
   const [sortOption, setSortOption] = useState<'newest' | 'deadline' | 'relevance'>('newest');
   const [useAISearch, setUseAISearch] = useState(false);
   const [bookmarks, setBookmarks] = useState<string[]>([]);
@@ -296,7 +297,17 @@ export default function DashboardPage() {
           : (typeof item?.vector_score === 'number' ? item.vector_score : undefined),
       }));
 
-      const sorted = [...mapped].sort((a, b) => {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const filtered = mapped.filter((a) => {
+        if (statusFilter === 'all') return true;
+        if (statusFilter === 'ongoing') {
+          return a.end_date >= todayStr;
+        }
+        const dday = calculateDday(a.end_date);
+        return dday >= 0 && dday <= 7;
+      });
+
+      const sorted = [...filtered].sort((a, b) => {
         if (sortOption === 'relevance') {
           return (b.relevance ?? 0) - (a.relevance ?? 0);
         }
@@ -362,7 +373,17 @@ export default function DashboardPage() {
         })),
       ];
 
-      const sorted = [...combined].sort((a, b) => {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const filtered = combined.filter((a) => {
+        if (statusFilter === 'all') return true;
+        if (statusFilter === 'ongoing') {
+          return a.end_date >= todayStr;
+        }
+        const dday = calculateDday(a.end_date);
+        return dday >= 0 && dday <= 7;
+      });
+
+      const sorted = [...filtered].sort((a, b) => {
         if (sortOption === 'deadline') {
           return new Date(a.end_date).getTime() - new Date(b.end_date).getTime();
         }
@@ -482,6 +503,38 @@ export default function DashboardPage() {
                       </option>
                     ))}
                   </select>
+                </div>
+
+                <div className="mt-3">
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">
+                    상태
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant={statusFilter === 'all' ? 'default' : 'outline'}
+                      onClick={() => setStatusFilter('all')}
+                      className="h-9 px-4 text-sm"
+                    >
+                      전체
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={statusFilter === 'ongoing' ? 'default' : 'outline'}
+                      onClick={() => setStatusFilter('ongoing')}
+                      className="h-9 px-4 text-sm"
+                    >
+                      진행중
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={statusFilter === 'deadline' ? 'default' : 'outline'}
+                      onClick={() => setStatusFilter('deadline')}
+                      className="h-9 px-4 text-sm"
+                    >
+                      마감임박
+                    </Button>
+                  </div>
                 </div>
               </div>
 
