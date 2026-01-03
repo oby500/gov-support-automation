@@ -29,6 +29,7 @@ interface RecentView {
 }
 
 export default function DashboardPage() {
+  const MAX_COMPARE = 3;
   const [searchQuery, setSearchQuery] = useState('');
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,6 +38,8 @@ export default function DashboardPage() {
   const [useAISearch, setUseAISearch] = useState(false);
   const [bookmarks, setBookmarks] = useState<string[]>([]);
   const [recentViews, setRecentViews] = useState<RecentView[]>([]);
+  const [compareList, setCompareList] = useState<Announcement[]>([]);
+  const [showCompareModal, setShowCompareModal] = useState(false);
 
   useEffect(() => {
     fetchRecent();
@@ -116,6 +119,26 @@ export default function DashboardPage() {
 
   const handleAnnouncementClick = (announcement: Announcement) => {
     saveRecentView(announcement);
+  };
+
+  const toggleCompare = (announcement: Announcement) => {
+    const exists = compareList.find((item) => item.id === announcement.id);
+
+    if (exists) {
+      setCompareList(compareList.filter((item) => item.id !== announcement.id));
+    } else {
+      if (compareList.length >= MAX_COMPARE) {
+        alert(`최대 ${MAX_COMPARE}개까지 비교할 수 있습니다.`);
+        return;
+      }
+      setCompareList([...compareList, announcement]);
+      setShowCompareModal(true);
+    }
+  };
+
+  const clearCompare = () => {
+    setCompareList([]);
+    setShowCompareModal(false);
   };
 
   useEffect(() => {
@@ -433,18 +456,33 @@ export default function DashboardPage() {
                 <div className="border-2 rounded-lg p-5 hover:shadow-lg hover:border-orange-300 transition-all cursor-pointer h-full">
                   {/* 상단: D-Day 배지 */}
                   <div className="flex items-start justify-between mb-3">
-                    <button
-                      type="button"
-                      className="text-xl leading-none text-yellow-500"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        toggleBookmark(announcement.id);
-                      }}
-                      aria-label="bookmark"
-                    >
-                      {isBookmarked(announcement.id) ? '⭐' : '☆'}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        className="text-xl leading-none text-yellow-500"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          toggleBookmark(announcement.id);
+                        }}
+                        aria-label="bookmark"
+                      >
+                        {isBookmarked(announcement.id) ? '⭐' : '☆'}
+                      </button>
+
+                      <button
+                        type="button"
+                        className="text-xs px-2 py-1 rounded border border-gray-300 text-gray-700 hover:bg-gray-50"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          toggleCompare(announcement);
+                        }}
+                        aria-label="compare"
+                      >
+                        {compareList.some((item) => item.id === announcement.id) ? '비교✓' : '비교+'}
+                      </button>
+                    </div>
                     <div>
                       {typeof announcement.relevance === 'number' && (
                         <span className="inline-block px-2.5 py-1 bg-purple-600 text-white text-xs font-bold rounded mr-2">
@@ -522,6 +560,72 @@ export default function DashboardPage() {
             </div>
           </aside>
         </div>
+
+        {showCompareModal && compareList.length > 0 && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-6">
+            <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6 border-b sticky top-0 bg-white">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-bold text-gray-900">공고 비교</h2>
+                  <div className="flex gap-2">
+                    <Button onClick={clearCompare} variant="outline">
+                      초기화
+                    </Button>
+                    <Button onClick={() => setShowCompareModal(false)} variant="ghost">
+                      ✕
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {compareList.map((announcement, index) => (
+                    <div key={announcement.id} className="border-2 border-orange-300 rounded-lg p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <span className="inline-block px-2 py-1 bg-orange-500 text-white text-xs font-bold rounded">
+                          공고 {index + 1}
+                        </span>
+                        <button
+                          type="button"
+                          className="text-gray-500 hover:text-gray-700"
+                          onClick={() => toggleCompare(announcement)}
+                          aria-label="remove"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      <div className="text-lg font-bold text-gray-900 mb-3 line-clamp-2">
+                        {announcement.title}
+                      </div>
+
+                      <div className="text-sm text-gray-600 mb-2">
+                        <span className="font-medium text-gray-700">기관</span>
+                        <span className="ml-2">{announcement.organization}</span>
+                      </div>
+                      <div className="text-sm text-gray-600 mb-2">
+                        <span className="font-medium text-gray-700">마감</span>
+                        <span className="ml-2">{announcement.end_date}</span>
+                      </div>
+                      <Button asChild variant="outline" size="sm" className="w-full mt-2">
+                        <Link href={`/announcement/${announcement.id}`}>상세보기</Link>
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+
+                {compareList.length < MAX_COMPARE && (
+                  <div className="mt-4 p-4 bg-gray-100 rounded-lg text-center">
+                    <p className="text-sm text-gray-600">
+                      최대 {MAX_COMPARE}개까지 비교할 수 있습니다. (현재 {compareList.length}개)
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
