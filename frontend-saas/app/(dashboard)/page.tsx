@@ -15,13 +15,36 @@ interface Announcement {
   source: string;
 }
 
+interface FilterOptions {
+  categories: string[];
+}
+
 export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filterOptions, setFilterOptions] = useState<FilterOptions>({ categories: [] });
+  const [selectedCategory, setSelectedCategory] = useState('');
 
   useEffect(() => {
     fetchRecent();
+  }, []);
+
+  useEffect(() => {
+    async function fetchFilterOptions() {
+      try {
+        const response = await fetch('/api/filters');
+        const data = await response.json();
+
+        if (data?.success && data?.filters?.categories) {
+          setFilterOptions({ categories: data.filters.categories });
+        }
+      } catch (error) {
+        console.error('필터 옵션 로딩 실패:', error);
+      }
+    }
+
+    fetchFilterOptions();
   }, []);
 
   async function fetchRecent() {
@@ -71,15 +94,27 @@ export default function DashboardPage() {
     setLoading(true);
 
     try {
-      const { data: kstartupData } = await supabase
+      let kstartupQuery = supabase
         .from('kstartup_complete')
         .select('announcement_id, biz_pbanc_nm, pbanc_ntrp_nm, pbanc_rcpt_end_dt')
         .ilike('biz_pbanc_nm', `%${searchQuery}%`);
 
-      const { data: bizinfoData } = await supabase
+      if (selectedCategory) {
+        kstartupQuery = kstartupQuery.eq('category', selectedCategory);
+      }
+
+      const { data: kstartupData } = await kstartupQuery;
+
+      let bizinfoQuery = supabase
         .from('bizinfo_complete')
         .select('pblanc_id, pblanc_nm, organ_nm, reqst_end_ymd')
         .ilike('pblanc_nm', `%${searchQuery}%`);
+
+      if (selectedCategory) {
+        bizinfoQuery = bizinfoQuery.eq('category', selectedCategory);
+      }
+
+      const { data: bizinfoData } = await bizinfoQuery;
 
       const combined: Announcement[] = [
         ...(kstartupData || []).map((item) => ({
@@ -171,6 +206,24 @@ export default function DashboardPage() {
                       if (e.key === 'Enter') handleSearch();
                     }}
                   />
+                </div>
+
+                <div className="mt-3">
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">
+                    지원분야
+                  </label>
+                  <select
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                  >
+                    <option value="">전체</option>
+                    {filterOptions.categories.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
