@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Calendar, Building2, Search } from 'lucide-react';
+import AutoSlideCarousel from '@/components/AutoSlideCarousel';
 
 interface Announcement {
   id: string;
@@ -32,6 +33,7 @@ export default function DashboardPage() {
   const MAX_COMPARE = 3;
   const [searchQuery, setSearchQuery] = useState('');
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [carouselAnnouncements, setCarouselAnnouncements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({ categories: [] });
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -43,6 +45,10 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchRecent();
+  }, []);
+
+  useEffect(() => {
+    fetchCarousel();
   }, []);
 
   useEffect(() => {
@@ -196,6 +202,45 @@ export default function DashboardPage() {
       console.error('공고 조회 실패:', error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function fetchCarousel() {
+    try {
+      const { data: kstartupData } = await supabase
+        .from('kstartup_complete')
+        .select('announcement_id, biz_pbanc_nm, pbanc_ntrp_nm, pbanc_rcpt_end_dt')
+        .order('pbanc_rcpt_end_dt', { ascending: false })
+        .limit(15);
+
+      const { data: bizinfoData } = await supabase
+        .from('bizinfo_complete')
+        .select('pblanc_id, pblanc_nm, organ_nm, reqst_end_ymd')
+        .order('reqst_end_ymd', { ascending: false })
+        .limit(15);
+
+      const combined = [
+        ...(kstartupData || []).map((item) => ({
+          id: item.announcement_id,
+          title: item.biz_pbanc_nm,
+          organization: item.pbanc_ntrp_nm,
+          end_date: item.pbanc_rcpt_end_dt,
+          source: 'kstartup',
+          status: 'ongoing',
+        })),
+        ...(bizinfoData || []).map((item) => ({
+          id: item.pblanc_id,
+          title: item.pblanc_nm,
+          organization: item.organ_nm,
+          end_date: item.reqst_end_ymd,
+          source: 'bizinfo',
+          status: 'ongoing',
+        })),
+      ].slice(0, 30);
+
+      setCarouselAnnouncements(combined);
+    } catch (error) {
+      console.error('캐러셀 공고 로딩 실패:', error);
     }
   }
 
@@ -433,6 +478,13 @@ export default function DashboardPage() {
           </div>
         </div>
       </header>
+
+      {/* Carousel Section - 추천 공고 */}
+      <div className="bg-gray-50 py-8">
+        <div className="container mx-auto px-6">
+          <AutoSlideCarousel announcements={carouselAnnouncements} onAnnouncementClick={handleAnnouncementClick} />
+        </div>
+      </div>
 
       {/* Main Content */}
       <div className="container mx-auto px-6 py-8">
