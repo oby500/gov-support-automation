@@ -20,6 +20,14 @@ interface FilterOptions {
   categories: string[];
 }
 
+interface RecentView {
+  id: string;
+  title: string;
+  organization: string;
+  end_date: string;
+  viewedAt?: string;
+}
+
 export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -28,6 +36,7 @@ export default function DashboardPage() {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [useAISearch, setUseAISearch] = useState(false);
   const [bookmarks, setBookmarks] = useState<string[]>([]);
+  const [recentViews, setRecentViews] = useState<RecentView[]>([]);
 
   useEffect(() => {
     fetchRecent();
@@ -35,6 +44,10 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadBookmarks();
+  }, []);
+
+  useEffect(() => {
+    loadRecentViews();
   }, []);
 
   const loadBookmarks = () => {
@@ -66,6 +79,43 @@ export default function DashboardPage() {
 
   const isBookmarked = (announcementId: string) => {
     return bookmarks.includes(announcementId);
+  };
+
+  const loadRecentViews = () => {
+    try {
+      const recent = JSON.parse(localStorage.getItem('recentAnnouncements') || '[]');
+      setRecentViews(recent);
+    } catch (error) {
+      console.error('최근 본 공고 로드 실패:', error);
+    }
+  };
+
+  const saveRecentView = (announcement: Announcement) => {
+    try {
+      const recent = JSON.parse(localStorage.getItem('recentAnnouncements') || '[]');
+
+      const filtered = recent.filter((item: any) => item.id !== announcement.id);
+
+      const updated: RecentView[] = [
+        {
+          id: announcement.id,
+          title: announcement.title,
+          organization: announcement.organization,
+          end_date: announcement.end_date,
+          viewedAt: new Date().toISOString(),
+        },
+        ...filtered,
+      ].slice(0, 10);
+
+      localStorage.setItem('recentAnnouncements', JSON.stringify(updated));
+      setRecentViews(updated);
+    } catch (error) {
+      console.error('최근 본 공고 저장 실패:', error);
+    }
+  };
+
+  const handleAnnouncementClick = (announcement: Announcement) => {
+    saveRecentView(announcement);
   };
 
   useEffect(() => {
@@ -364,9 +414,11 @@ export default function DashboardPage() {
       {/* Main Content */}
       <div className="container mx-auto px-6 py-8">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">최근 공고</h1>
-        
-        {/* 3-column Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+        <div className="flex gap-6">
+          <div className="flex-1">
+            {/* 3-column Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {announcements.map((announcement) => {
             const dday = calculateDday(announcement.end_date);
             const isDeadline = dday <= 7;
@@ -376,6 +428,7 @@ export default function DashboardPage() {
                 key={announcement.id}
                 href={`/announcement/${announcement.id}`}
                 className="block"
+                onClick={() => handleAnnouncementClick(announcement)}
               >
                 <div className="border-2 rounded-lg p-5 hover:shadow-lg hover:border-orange-300 transition-all cursor-pointer h-full">
                   {/* 상단: D-Day 배지 */}
@@ -430,13 +483,45 @@ export default function DashboardPage() {
               </Link>
             );
           })}
-        </div>
+            </div>
 
-        {announcements.length === 0 && (
-          <div className="text-center text-gray-500 py-12">
-            공고가 없습니다.
+            {announcements.length === 0 && (
+              <div className="text-center text-gray-500 py-12">
+                공고가 없습니다.
+              </div>
+            )}
           </div>
-        )}
+
+          <aside className="w-72 shrink-0">
+            <div className="border rounded-lg p-4">
+              <h2 className="text-lg font-bold text-gray-900 mb-3">최근 본 공고</h2>
+
+              {recentViews.length === 0 ? (
+                <div className="text-sm text-gray-500">최근 본 공고가 없습니다.</div>
+              ) : (
+                <div className="space-y-3">
+                  {recentViews.slice(0, 5).map((item) => (
+                    <Link
+                      key={item.id}
+                      href={`/announcement/${item.id}`}
+                      className="block"
+                    >
+                      <div className="text-sm font-medium text-gray-900 line-clamp-2 hover:text-orange-500">
+                        {item.title}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1 line-clamp-1">
+                        {item.organization}
+                      </div>
+                      <div className="text-xs text-gray-400 mt-0.5">
+                        마감 {item.end_date}
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          </aside>
+        </div>
       </div>
     </div>
   );
