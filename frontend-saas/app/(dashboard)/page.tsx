@@ -3,7 +3,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import Link from 'next/link';
-import { Calendar, Building2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Calendar, Building2, Search } from 'lucide-react';
 
 interface Announcement {
   id: string;
@@ -14,6 +16,7 @@ interface Announcement {
 }
 
 export default function DashboardPage() {
+  const [searchQuery, setSearchQuery] = useState('');
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -57,6 +60,47 @@ export default function DashboardPage() {
       setAnnouncements(combined);
     } catch (error) {
       console.error('공고 조회 실패:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSearch() {
+    if (!searchQuery.trim()) return;
+
+    setLoading(true);
+
+    try {
+      const { data: kstartupData } = await supabase
+        .from('kstartup_complete')
+        .select('announcement_id, biz_pbanc_nm, pbanc_ntrp_nm, pbanc_rcpt_end_dt')
+        .ilike('biz_pbanc_nm', `%${searchQuery}%`);
+
+      const { data: bizinfoData } = await supabase
+        .from('bizinfo_complete')
+        .select('pblanc_id, pblanc_nm, organ_nm, reqst_end_ymd')
+        .ilike('pblanc_nm', `%${searchQuery}%`);
+
+      const combined: Announcement[] = [
+        ...(kstartupData || []).map((item) => ({
+          id: item.announcement_id,
+          title: item.biz_pbanc_nm,
+          organization: item.pbanc_ntrp_nm,
+          end_date: item.pbanc_rcpt_end_dt,
+          source: 'kstartup',
+        })),
+        ...(bizinfoData || []).map((item) => ({
+          id: item.pblanc_id,
+          title: item.pblanc_nm,
+          organization: item.organ_nm,
+          end_date: item.reqst_end_ymd,
+          source: 'bizinfo',
+        })),
+      ];
+
+      setAnnouncements(combined);
+    } catch (error) {
+      console.error('검색 실패:', error);
     } finally {
       setLoading(false);
     }
@@ -114,6 +158,25 @@ export default function DashboardPage() {
                   <span className="text-white font-bold text-xl">로튼</span>
                 </div>
               </Link>
+              <div className="flex-1 max-w-2xl mx-8">
+                <div className="relative">
+                  <Search className="absolute left-4 top-3.5 h-5 w-5 text-gray-400" />
+                  <Input
+                    type="text"
+                    placeholder="검색어를 입력하세요"
+                    className="pl-12 h-12 text-base"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSearch();
+                    }}
+                  />
+                </div>
+              </div>
+
+              <Button onClick={handleSearch} className="bg-blue-600 hover:bg-blue-700 h-12 px-8">
+                검색
+              </Button>
             </div>
           </div>
         </div>
