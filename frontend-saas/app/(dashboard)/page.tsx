@@ -37,11 +37,18 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({ categories: [] });
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [sortOption, setSortOption] = useState<'newest' | 'deadline' | 'relevance'>('newest');
   const [useAISearch, setUseAISearch] = useState(false);
   const [bookmarks, setBookmarks] = useState<string[]>([]);
   const [recentViews, setRecentViews] = useState<RecentView[]>([]);
   const [compareList, setCompareList] = useState<Announcement[]>([]);
   const [showCompareModal, setShowCompareModal] = useState(false);
+
+  useEffect(() => {
+    if (!useAISearch && sortOption === 'relevance') {
+      setSortOption('newest');
+    }
+  }, [useAISearch, sortOption]);
 
   useEffect(() => {
     fetchRecent();
@@ -289,7 +296,20 @@ export default function DashboardPage() {
           : (typeof item?.vector_score === 'number' ? item.vector_score : undefined),
       }));
 
-      setAnnouncements(mapped);
+      const sorted = [...mapped].sort((a, b) => {
+        if (sortOption === 'relevance') {
+          return (b.relevance ?? 0) - (a.relevance ?? 0);
+        }
+        if (sortOption === 'deadline') {
+          return new Date(a.end_date).getTime() - new Date(b.end_date).getTime();
+        }
+        if (sortOption === 'newest') {
+          return new Date(b.end_date).getTime() - new Date(a.end_date).getTime();
+        }
+        return 0;
+      });
+
+      setAnnouncements(sorted);
     } catch (error) {
       console.error('AI 검색 실패:', error);
     } finally {
@@ -342,7 +362,17 @@ export default function DashboardPage() {
         })),
       ];
 
-      setAnnouncements(combined);
+      const sorted = [...combined].sort((a, b) => {
+        if (sortOption === 'deadline') {
+          return new Date(a.end_date).getTime() - new Date(b.end_date).getTime();
+        }
+        if (sortOption === 'newest') {
+          return new Date(b.end_date).getTime() - new Date(a.end_date).getTime();
+        }
+        return 0;
+      });
+
+      setAnnouncements(sorted);
     } catch (error) {
       console.error('검색 실패:', error);
     } finally {
@@ -498,7 +528,24 @@ export default function DashboardPage() {
 
       {/* Main Content */}
       <div className="container mx-auto px-6 py-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">최근 공고</h1>
+        <div className="mb-6 flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-900">
+            {searchQuery ? `\"${searchQuery}\" 검색 결과` : '최근 공고'}
+          </h1>
+
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-600">정렬:</label>
+            <select
+              className="border border-gray-300 rounded-md px-3 py-1.5 text-sm"
+              value={sortOption}
+              onChange={(e) => setSortOption(e.target.value as any)}
+            >
+              <option value="newest">최신순</option>
+              <option value="deadline">마감임박순</option>
+              {useAISearch && <option value="relevance">관련도순</option>}
+            </select>
+          </div>
+        </div>
 
         <div className="flex gap-6">
           <div className="flex-1">
