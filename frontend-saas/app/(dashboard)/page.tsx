@@ -150,12 +150,22 @@ export default function DashboardPage() {
   useEffect(() => {
     async function fetchFilterOptions() {
       try {
-        const response = await fetch('/api/filters');
-        const data = await response.json();
+        const { data: kstartupCats } = await supabase
+          .from('kstartup_complete')
+          .select('supt_biz_clsfc')
+          .not('supt_biz_clsfc', 'is', null);
 
-        if (data?.success && data?.filters?.categories) {
-          setFilterOptions({ categories: data.filters.categories });
-        }
+        const { data: bizinfoCats } = await supabase
+          .from('bizinfo_complete')
+          .select('sprt_realm_nm')
+          .not('sprt_realm_nm', 'is', null);
+
+        const categories = new Set([
+          ...(kstartupCats || []).map((r: any) => r.supt_biz_clsfc),
+          ...(bizinfoCats || []).map((r: any) => r.sprt_realm_nm),
+        ]);
+
+        setFilterOptions({ categories: Array.from(categories).sort() });
       } catch (error) {
         console.error('필터 옵션 로딩 실패:', error);
       }
@@ -299,7 +309,7 @@ export default function DashboardPage() {
         .ilike('biz_pbanc_nm', `%${searchQuery}%`);
 
       if (selectedCategory) {
-        kstartupQuery = kstartupQuery.eq('category', selectedCategory);
+        kstartupQuery = kstartupQuery.eq('supt_biz_clsfc', selectedCategory);
       }
 
       const { data: kstartupData } = await kstartupQuery;
@@ -310,7 +320,7 @@ export default function DashboardPage() {
         .ilike('pblanc_nm', `%${searchQuery}%`);
 
       if (selectedCategory) {
-        bizinfoQuery = bizinfoQuery.eq('category', selectedCategory);
+        bizinfoQuery = bizinfoQuery.eq('sprt_realm_nm', selectedCategory);
       }
 
       const { data: bizinfoData } = await bizinfoQuery;
