@@ -27,10 +27,46 @@ export default function DashboardPage() {
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({ categories: [] });
   const [selectedCategory, setSelectedCategory] = useState('');
   const [useAISearch, setUseAISearch] = useState(false);
+  const [bookmarks, setBookmarks] = useState<string[]>([]);
 
   useEffect(() => {
     fetchRecent();
   }, []);
+
+  useEffect(() => {
+    loadBookmarks();
+  }, []);
+
+  const loadBookmarks = () => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('bookmarkedAnnouncements') || '[]');
+      setBookmarks(saved);
+    } catch (error) {
+      console.error('북마크 로드 실패:', error);
+    }
+  };
+
+  const toggleBookmark = (announcementId: string) => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('bookmarkedAnnouncements') || '[]');
+
+      let updated: string[];
+      if (saved.includes(announcementId)) {
+        updated = saved.filter((id: string) => id !== announcementId);
+      } else {
+        updated = [...saved, announcementId];
+      }
+
+      localStorage.setItem('bookmarkedAnnouncements', JSON.stringify(updated));
+      setBookmarks(updated);
+    } catch (error) {
+      console.error('북마크 토글 실패:', error);
+    }
+  };
+
+  const isBookmarked = (announcementId: string) => {
+    return bookmarks.includes(announcementId);
+  };
 
   useEffect(() => {
     async function fetchFilterOptions() {
@@ -344,7 +380,18 @@ export default function DashboardPage() {
                 <div className="border-2 rounded-lg p-5 hover:shadow-lg hover:border-orange-300 transition-all cursor-pointer h-full">
                   {/* 상단: D-Day 배지 */}
                   <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1"></div>
+                    <button
+                      type="button"
+                      className="text-xl leading-none text-yellow-500"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        toggleBookmark(announcement.id);
+                      }}
+                      aria-label="bookmark"
+                    >
+                      {isBookmarked(announcement.id) ? '⭐' : '☆'}
+                    </button>
                     <div>
                       {typeof announcement.relevance === 'number' && (
                         <span className="inline-block px-2.5 py-1 bg-purple-600 text-white text-xs font-bold rounded mr-2">
