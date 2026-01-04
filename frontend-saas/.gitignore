@@ -8,3 +8,5 @@ build*.txt
 *.png
 middleware.ts.backup
 screenshot.png
+
+!public/roten-logo.png
