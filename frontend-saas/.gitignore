@@ -1,0 +1,10 @@
+.env
+.env.local
+.env.backup
+.vercel/
+*.log
+*.tsbuildinfo
+build*.txt
+*.png
+middleware.ts.backup
+screenshot.png
